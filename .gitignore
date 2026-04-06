@@ -1,0 +1,39 @@
+.DS_Store
+.git-backups/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+
+# Node / Next
+node_modules/
+.next/
+dist/
+coverage/
+tsconfig.tsbuildinfo
+**/node_modules/
+**/.next/
+**/dist/
+**/coverage/
+**/tsconfig.tsbuildinfo
+
+# Env / secrets
+.env
+*.local
+**/.env
+**/*.local
+
+# IDE
+.idea/
+.vscode/
+**/.idea/
+**/.vscode/
+
+# Logs
+logs/
+**/logs/

@@ -1,0 +1,168 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: data-agent-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: data_agent
+      MYSQL_PASSWORD: DataAgent.123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data-v2:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    container_name: data-agent-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.2
+    container_name: data-agent-es
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "19200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.2
+    container_name: data-agent-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "5601:5601"
+
+  embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: data-agent-embedding
+    platform: linux/amd64
+    command:
+      - --model-id
+      - BAAI/bge-large-zh-v1.5
+      - --port
+      - "80"
+    ports:
+      - "8081:80"
+    volumes:
+      - hf-cache:/data
+
+  meta-builder:
+    build:
+      context: .
+      dockerfile: docker/agent/Dockerfile
+    container_name: data-agent-meta-builder
+    command: ["./docker/agent/build-meta.sh"]
+    environment:
+      META_DB_HOST: mysql
+      META_DB_PORT: 3306
+      META_DB_USER: data_agent
+      META_DB_PASSWORD: DataAgent.123
+      META_DB_NAME: meta
+      DW_DB_HOST: mysql
+      DW_DB_PORT: 3306
+      DW_DB_USER: data_agent
+      DW_DB_PASSWORD: DataAgent.123
+      DW_DB_NAME: dw
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      QDRANT_EMBEDDING_SIZE: ${QDRANT_EMBEDDING_SIZE:-1024}
+      ES_HOST: elasticsearch
+      ES_PORT: 9200
+      ES_INDEX_NAME: ${ES_INDEX_NAME:-data_agent}
+      EMBEDDING_HOST: ${EMBEDDING_HOST:-openai}
+      EMBEDDING_PORT: ${EMBEDDING_PORT:-80}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: "no"
+
+  agent:
+    build:
+      context: .
+      dockerfile: docker/agent/Dockerfile
+    container_name: data-agent-api
+    environment:
+      META_DB_HOST: mysql
+      META_DB_PORT: 3306
+      META_DB_USER: data_agent
+      META_DB_PASSWORD: DataAgent.123
+      META_DB_NAME: meta
+      DW_DB_HOST: mysql
+      DW_DB_PORT: 3306
+      DW_DB_USER: data_agent
+      DW_DB_PASSWORD: DataAgent.123
+      DW_DB_NAME: dw
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      QDRANT_EMBEDDING_SIZE: ${QDRANT_EMBEDDING_SIZE:-1024}
+      ES_HOST: elasticsearch
+      ES_PORT: 9200
+      ES_INDEX_NAME: ${ES_INDEX_NAME:-data_agent}
+      EMBEDDING_HOST: ${EMBEDDING_HOST:-openai}
+      EMBEDDING_PORT: ${EMBEDDING_PORT:-80}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      meta-builder:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  mysql-data-v2:
+  qdrant-data:
+  es-data:
+  hf-cache:

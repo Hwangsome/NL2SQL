@@ -1,0 +1,44 @@
+logging:
+  file:
+    enable: true
+    level: INFO
+    path: logs
+    rotation: "10 MB"
+    retention: "7 days"
+  console:
+    enable: true
+    level: INFO
+
+db_meta:
+  host: ${oc.env:META_DB_HOST,127.0.0.1}
+  port: ${oc.env:META_DB_PORT,3306}
+  user: ${oc.env:META_DB_USER,data_agent}
+  password: ${oc.env:META_DB_PASSWORD,DataAgent.123}
+  database: ${oc.env:META_DB_NAME,meta}
+
+db_dw:
+  host: ${oc.env:DW_DB_HOST,127.0.0.1}
+  port: ${oc.env:DW_DB_PORT,3306}
+  user: ${oc.env:DW_DB_USER,data_agent}
+  password: ${oc.env:DW_DB_PASSWORD,DataAgent.123}
+  database: ${oc.env:DW_DB_NAME,dw}
+
+qdrant:
+  host: ${oc.env:QDRANT_HOST,127.0.0.1}
+  port: ${oc.env:QDRANT_PORT,6333}
+  embedding_size: ${oc.env:QDRANT_EMBEDDING_SIZE,1024}
+
+embedding:
+  host: ${oc.env:EMBEDDING_HOST,127.0.0.1}
+  port: ${oc.env:EMBEDDING_PORT,8081}
+  model: ${oc.env:EMBEDDING_MODEL,BAAI/bge-large-zh-v1.5}
+
+es:
+  host: ${oc.env:ES_HOST,127.0.0.1}
+  port: ${oc.env:ES_PORT,19200}
+  index_name: ${oc.env:ES_INDEX_NAME,data_agent}
+
+llm:
+  model_name: ${oc.env:OPENAI_MODEL,gpt-5.2-codex}
+  api_key: ${oc.env:OPENAI_API_KEY,""}
+  base_url: ${oc.env:OPENAI_BASE_URL,https://api.openai-proxy.org/v1}
