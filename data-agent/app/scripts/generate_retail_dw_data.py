@@ -324,7 +324,7 @@ def write_csv(path: Path, rows: list[dict[str, str | int | float]]) -> None:
 
 def write_summary(path: Path, config: GenerateConfig, counts: dict[str, int]) -> None:
     summary = {
-        "dataset": "demo_dw_large",
+        "dataset": "retail_dw_large",
         "generated_at": date.today().isoformat(),
         "config": {
             "seed": config.seed,
@@ -427,8 +427,8 @@ def generate_dataset(config: GenerateConfig) -> dict[str, int]:
 
 
 def parse_args() -> GenerateConfig:
-    parser = argparse.ArgumentParser(description="Generate and optionally load demo DW data.")
-    parser.add_argument("--output-dir", type=Path, default=Path("data/demo_dw_large"))
+    parser = argparse.ArgumentParser(description="Generate and optionally load retail DW data.")
+    parser.add_argument("--output-dir", type=Path, default=Path("data/retail_dw_large"))
     parser.add_argument("--seed", type=int, default=20260406)
     parser.add_argument("--customers", type=int, default=600)
     parser.add_argument("--products", type=int, default=120)

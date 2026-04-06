@@ -1,6 +1,6 @@
 # 掌柜问数
 
-基于课程文档重建的 `NL2SQL` 示例工程，包含：
+基于课程文档重建的 `NL2SQL` 工程，包含：
 
 - `FastAPI` SSE 查询接口
 - `LangGraph` 问数智能体
@@ -59,13 +59,13 @@ uv run python -m app.scripts.build_meta_knowledge --config conf/meta_config.yaml
 uv run fastapi dev main.py
 ```
 
-## 生成演示数据
+## 生成业务数据
 
-项目内提供了可留存的大规模演示数据生成脚本，会把 CSV 数据写入 [data/demo_dw_large](/Users/bill/code/AI/NL2SQL/data-agent/data/demo_dw_large) 并可直接导入 `dw` 库：
+项目内提供了可留存的大规模零售业务数据生成脚本，会把 CSV 数据写入 [data/retail_dw_large](/Users/bill/code/AI/NL2SQL/data-agent/data/retail_dw_large) 并可直接导入 `dw` 库：
 
 ```bash
 cd /Users/bill/code/AI/NL2SQL/data-agent
-DW_DB_PORT=3307 uv run python -m app.scripts.generate_demo_dw_data --load-db
+DW_DB_PORT=3307 uv run python -m app.scripts.generate_retail_dw_data --load-db
 META_DB_PORT=3307 DW_DB_PORT=3307 ES_PORT=19200 uv run python -m app.scripts.build_meta_knowledge --config conf/meta_config.yaml
 ```
 
@@ -76,7 +76,7 @@ META_DB_PORT=3307 DW_DB_PORT=3307 ES_PORT=19200 uv run python -m app.scripts.bui
 - `120` 个商品
 - `18000` 条订单
 
-这样更适合演示“按地区、品牌、会员等级、时间趋势”等问数效果。
+这样更适合验证“按地区、品牌、会员等级、时间趋势”等问数效果。
 
 ## 目录
 

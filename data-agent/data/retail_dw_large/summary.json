@@ -1,5 +1,5 @@
 {
-  "dataset": "demo_dw_large",
+  "dataset": "retail_dw_large",
   "generated_at": "2026-04-06",
   "config": {
     "seed": 20260406,

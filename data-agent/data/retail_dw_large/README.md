@@ -1,12 +1,12 @@
-# demo_dw_large
+# retail_dw_large
 
-这是项目内留存的可复用测试数仓数据集目录。
+这是项目内留存的可复用零售业务数仓数据集目录。
 
 生成并导入：
 
 ```bash
 cd /Users/bill/code/AI/NL2SQL/data-agent
-DW_DB_PORT=3307 uv run python -m app.scripts.generate_demo_dw_data --load-db
+DW_DB_PORT=3307 uv run python -m app.scripts.generate_retail_dw_data --load-db
 ```
 
 默认生成：
