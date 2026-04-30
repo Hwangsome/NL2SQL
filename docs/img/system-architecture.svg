@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" role="img" aria-labelledby="title desc">
+  <title id="title">NL2SQL 系统整体架构图</title>
+  <desc id="desc">展示 NL2SQL 工作区的前端、后端、Agent、模型、知识库构建、数据存储和 Docker 基础设施。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#15803d"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .section { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; }
+      .section-title { font: 700 19px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #1e293b; }
+      .box-title { font: 700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .box-text { font: 400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+      .small { font: 400 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .frontend { fill: #ecfeff; stroke: #0891b2; stroke-width: 1.6; }
+      .backend { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.6; }
+      .agent { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 1.6; }
+      .data { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.6; }
+      .model { fill: #f0fdf4; stroke: #16a34a; stroke-width: 1.6; }
+      .build { fill: #fefce8; stroke: #ca8a04; stroke-width: 1.6; }
+      .infra { fill: #f1f5f9; stroke: #64748b; stroke-width: 1.6; }
+      .arrow { stroke: #334155; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .arrow-green { stroke: #15803d; stroke-width: 2.3; fill: none; marker-end: url(#arrowGreen); }
+      .arrow-dashed { stroke: #64748b; stroke-width: 1.8; fill: none; stroke-dasharray: 7 6; marker-end: url(#arrow); }
+      .label { font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1180"/>
+  <text class="title" x="60" y="58">NL2SQL 系统整体架构图</text>
+  <text class="subtitle" x="60" y="88">运行态负责问数链路，构建态负责把业务数据、元数据配置和向量/全文索引准备成 Agent 可检索的知识库。</text>
+
+  <rect class="section" x="40" y="125" width="1520" height="190" rx="18"/>
+  <text class="section-title" x="68" y="158">前端应用层：data-agent-fronted</text>
+
+  <rect class="frontend" x="90" y="190" width="270" height="88" rx="12"/>
+  <text class="box-title" x="225" y="222" text-anchor="middle">Next.js / React UI</text>
+  <text class="box-text" x="225" y="246" text-anchor="middle">QueryWorkspace、QueryComposer</text>
+  <text class="box-text" x="225" y="266" text-anchor="middle">ConversationTurn、ResultTable、图表</text>
+
+  <rect class="frontend" x="455" y="190" width="270" height="88" rx="12"/>
+  <text class="box-title" x="590" y="222" text-anchor="middle">SSE 客户端</text>
+  <text class="box-text" x="590" y="246" text-anchor="middle">streamQuery 手动解析 data 事件</text>
+  <text class="box-text" x="590" y="266" text-anchor="middle">支持 AbortController 中止请求</text>
+
+  <rect class="frontend" x="820" y="190" width="270" height="88" rx="12"/>
+  <text class="box-title" x="955" y="222" text-anchor="middle">状态与渲染</text>
+  <text class="box-text" x="955" y="246" text-anchor="middle">progress / answer / result / error</text>
+  <text class="box-text" x="955" y="266" text-anchor="middle">实时更新进度、SQL、结果表和结论</text>
+
+  <rect class="frontend" x="1185" y="190" width="270" height="88" rx="12"/>
+  <text class="box-title" x="1320" y="222" text-anchor="middle">健康检查</text>
+  <text class="box-text" x="1320" y="246" text-anchor="middle">周期性请求 GET /health</text>
+  <text class="box-text" x="1320" y="266" text-anchor="middle">控制前端可用状态</text>
+
+  <path class="arrow" d="M360 234 H440"/>
+  <path class="arrow" d="M725 234 H805"/>
+  <path class="arrow-dashed" d="M1320 278 C1320 330 1280 330 1280 382"/>
+
+  <rect class="section" x="40" y="355" width="1520" height="300" rx="18"/>
+  <text class="section-title" x="68" y="388">后端运行层：data-agent</text>
+
+  <rect class="backend" x="90" y="430" width="245" height="92" rx="12"/>
+  <text class="box-title" x="212" y="462" text-anchor="middle">FastAPI main.py</text>
+  <text class="box-text" x="212" y="486" text-anchor="middle">CORS、request_id、lifespan</text>
+  <text class="box-text" x="212" y="506" text-anchor="middle">初始化和关闭外部客户端</text>
+
+  <rect class="backend" x="420" y="430" width="245" height="92" rx="12"/>
+  <text class="box-title" x="542" y="462" text-anchor="middle">query_router</text>
+  <text class="box-text" x="542" y="486" text-anchor="middle">POST /api/query</text>
+  <text class="box-text" x="542" y="506" text-anchor="middle">StreamingResponse: text/event-stream</text>
+
+  <rect class="backend" x="750" y="430" width="245" height="92" rx="12"/>
+  <text class="box-title" x="872" y="462" text-anchor="middle">QueryService</text>
+  <text class="box-text" x="872" y="486" text-anchor="middle">创建 DataAgentState</text>
+  <text class="box-text" x="872" y="506" text-anchor="middle">注入 DataAgentContext 仓储依赖</text>
+
+  <rect class="agent" x="1080" y="405" width="410" height="210" rx="14"/>
+  <text class="box-title" x="1285" y="438" text-anchor="middle">LangGraph Agent</text>
+  <text class="box-text" x="1285" y="466" text-anchor="middle">extract_keywords → recall_* → merge</text>
+  <text class="box-text" x="1285" y="490" text-anchor="middle">filter_table / filter_metric → add_context</text>
+  <text class="box-text" x="1285" y="514" text-anchor="middle">generate_sql → validate_sql → correct_sql</text>
+  <text class="box-text" x="1285" y="538" text-anchor="middle">execute_sql → summarize_answer</text>
+  <text class="small" x="1285" y="574" text-anchor="middle">节点通过 runtime.stream_writer 发送进度、答案和最终结果</text>
+
+  <path class="arrow" d="M590 278 C590 330 542 368 542 415"/>
+  <path class="arrow" d="M335 476 H405"/>
+  <path class="arrow" d="M665 476 H735"/>
+  <path class="arrow" d="M995 476 H1065"/>
+  <path class="arrow-dashed" d="M1080 585 C760 690 590 345 590 278"/>
+  <text class="label" x="760" y="620">SSE 回传到前端</text>
+
+  <rect class="section" x="40" y="695" width="750" height="390" rx="18"/>
+  <text class="section-title" x="68" y="728">知识库构建层：meta-builder / build_meta_knowledge.py</text>
+
+  <rect class="build" x="80" y="780" width="205" height="84" rx="12"/>
+  <text class="box-title" x="182" y="810" text-anchor="middle">输入配置与数据</text>
+  <text class="box-text" x="182" y="834" text-anchor="middle">conf/meta_config.yaml</text>
+  <text class="box-text" x="182" y="854" text-anchor="middle">MySQL(dw) 表结构和样例值</text>
+
+  <rect class="build" x="355" y="780" width="225" height="84" rx="12"/>
+  <text class="box-title" x="468" y="810" text-anchor="middle">MetaKnowledgeService</text>
+  <text class="box-text" x="468" y="834" text-anchor="middle">抽取表、字段、指标、取值</text>
+  <text class="box-text" x="468" y="854" text-anchor="middle">调用 Embedding 生成向量</text>
+
+  <rect class="build" x="80" y="930" width="205" height="84" rx="12"/>
+  <text class="box-title" x="182" y="960" text-anchor="middle">业务数据生成</text>
+  <text class="box-text" x="182" y="984" text-anchor="middle">generate_retail_dw_data.py</text>
+  <text class="box-text" x="182" y="1004" text-anchor="middle">CSV 与 dw 初始化数据</text>
+
+  <rect class="build" x="355" y="930" width="225" height="84" rx="12"/>
+  <text class="box-title" x="468" y="960" text-anchor="middle">Docker meta-builder</text>
+  <text class="box-text" x="468" y="984" text-anchor="middle">等待 MySQL / Qdrant / ES</text>
+  <text class="box-text" x="468" y="1004" text-anchor="middle">构建完成后 agent 才启动</text>
+
+  <path class="arrow-green" d="M285 822 H340"/>
+  <path class="arrow-green" d="M182 864 V915"/>
+  <path class="arrow-green" d="M285 972 H340"/>
+
+  <rect class="section" x="840" y="695" width="720" height="390" rx="18"/>
+  <text class="section-title" x="868" y="728">数据、检索、模型与基础设施</text>
+
+  <rect class="data" x="890" y="780" width="210" height="88" rx="12"/>
+  <text class="box-title" x="995" y="812" text-anchor="middle">MySQL(meta)</text>
+  <text class="box-text" x="995" y="836" text-anchor="middle">TableInfo、ColumnInfo</text>
+  <text class="box-text" x="995" y="856" text-anchor="middle">MetricInfo、ColumnMetric</text>
+
+  <rect class="data" x="1160" y="780" width="210" height="88" rx="12"/>
+  <text class="box-title" x="1265" y="812" text-anchor="middle">MySQL(dw)</text>
+  <text class="box-text" x="1265" y="836" text-anchor="middle">fact_order</text>
+  <text class="box-text" x="1265" y="856" text-anchor="middle">dim_region / dim_customer</text>
+  <text class="box-text" x="1265" y="876" text-anchor="middle">dim_product / dim_date</text>
+
+  <rect class="data" x="890" y="920" width="210" height="88" rx="12"/>
+  <text class="box-title" x="995" y="952" text-anchor="middle">Qdrant</text>
+  <text class="box-text" x="995" y="976" text-anchor="middle">字段向量集合</text>
+  <text class="box-text" x="995" y="996" text-anchor="middle">指标向量集合</text>
+
+  <rect class="data" x="1160" y="920" width="210" height="88" rx="12"/>
+  <text class="box-title" x="1265" y="952" text-anchor="middle">Elasticsearch</text>
+  <text class="box-text" x="1265" y="976" text-anchor="middle">字段取值全文索引</text>
+  <text class="box-text" x="1265" y="996" text-anchor="middle">辅助识别维度过滤条件</text>
+
+  <rect class="model" x="1415" y="780" width="105" height="88" rx="12"/>
+  <text class="box-title" x="1468" y="812" text-anchor="middle">LLM</text>
+  <text class="box-text" x="1468" y="836" text-anchor="middle">OpenAI</text>
+  <text class="box-text" x="1468" y="856" text-anchor="middle">兼容接口</text>
+
+  <rect class="model" x="1415" y="920" width="105" height="88" rx="12"/>
+  <text class="box-title" x="1468" y="952" text-anchor="middle">Embedding</text>
+  <text class="box-text" x="1468" y="976" text-anchor="middle">OpenAI</text>
+  <text class="box-text" x="1468" y="996" text-anchor="middle">或 TEI</text>
+
+  <path class="arrow-green" d="M580 822 C700 822 760 824 875 824"/>
+  <path class="arrow-green" d="M580 822 C735 835 760 945 875 964"/>
+  <path class="arrow-green" d="M580 822 C740 860 1020 960 1145 964"/>
+  <path class="arrow-green" d="M580 972 C735 985 1020 850 1145 824"/>
+  <path class="arrow-green" d="M580 822 C720 750 1350 735 1458 765"/>
+  <path class="arrow-green" d="M580 822 C760 895 1280 980 1400 964"/>
+
+  <path class="arrow-dashed" d="M1285 615 C1285 692 995 700 995 765"/>
+  <path class="arrow-dashed" d="M1285 615 C1285 690 1265 700 1265 765"/>
+  <path class="arrow-dashed" d="M1285 615 C1285 760 995 795 995 905"/>
+  <path class="arrow-dashed" d="M1285 615 C1285 760 1265 795 1265 905"/>
+  <path class="arrow-dashed" d="M1285 615 C1330 690 1468 705 1468 765"/>
+  <path class="arrow-dashed" d="M1285 615 C1350 770 1468 800 1468 905"/>
+
+  <rect class="infra" x="40" y="1110" width="1520" height="46" rx="14"/>
+  <text class="small" x="800" y="1139" text-anchor="middle">Docker Compose 基础设施：mysql:8.4、qdrant:v1.13.4、elasticsearch:8.17.2、kibana、text-embeddings-inference、meta-builder、agent</text>
+</svg>

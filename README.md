@@ -134,6 +134,24 @@ pnpm start --hostname 127.0.0.1 --port 3000
 
 - 前端：[http://127.0.0.1:3000](http://127.0.0.1:3000)
 - 后端健康检查：[http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+- Qdrant API：[http://127.0.0.1:6333](http://127.0.0.1:6333)
+- Qdrant Dashboard：[http://127.0.0.1:6333/dashboard](http://127.0.0.1:6333/dashboard)
+
+### 4. 查看 Qdrant 是否启动
+
+项目里的 `qdrant` 服务来自 [data-agent/docker-compose.yaml](/Users/bill/code/AI/NL2SQL/data-agent/docker-compose.yaml)，默认映射端口如下：
+
+- `6333`：HTTP API 和 Dashboard
+- `6334`：gRPC
+
+检查服务状态：
+
+```bash
+cd /Users/bill/code/AI/NL2SQL/data-agent
+docker compose ps qdrant
+```
+
+如果容器状态为 `Up`，就可以直接打开 [http://127.0.0.1:6333/dashboard](http://127.0.0.1:6333/dashboard) 进入 UI。
 
 ## 示例问题
 

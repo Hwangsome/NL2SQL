@@ -59,6 +59,33 @@ uv run python -m app.scripts.build_meta_knowledge --config conf/meta_config.yaml
 uv run fastapi dev main.py
 ```
 
+## Qdrant 访问
+
+`docker compose up -d` 会一并启动 `qdrant`，对应配置见 [docker-compose.yaml](/Users/bill/code/AI/NL2SQL/data-agent/docker-compose.yaml)。
+
+默认端口：
+
+- `6333`：HTTP API 和 Dashboard
+- `6334`：gRPC
+
+检查是否启动：
+
+```bash
+cd /Users/bill/code/AI/NL2SQL/data-agent
+docker compose ps qdrant
+```
+
+进入 Qdrant UI：
+
+- Dashboard：[http://127.0.0.1:6333/dashboard](http://127.0.0.1:6333/dashboard)
+- API 根路径：[http://127.0.0.1:6333](http://127.0.0.1:6333)
+
+如果需要进入容器内部排查：
+
+```bash
+docker exec -it data-agent-qdrant sh
+```
+
 ## 生成业务数据
 
 项目内提供了可留存的大规模零售业务数据生成脚本，会把 CSV 数据写入 [data/retail_dw_large](/Users/bill/code/AI/NL2SQL/data-agent/data/retail_dw_large) 并可直接导入 `dw` 库：

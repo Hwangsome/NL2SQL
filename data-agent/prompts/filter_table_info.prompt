@@ -7,18 +7,21 @@
 {table_infos}
 
 输出要求：
-1. 输出一个 JSON 对象。
-2. JSON 的 key 必须是候选表中的表名。
-3. value 必须是该表需要保留的字段名数组。
-4. 只保留与查询目标、筛选条件、分组维度、排序、时间条件相关的字段。
-5. 如果某张表被保留，且它的主键/外键对关联是必要的，也应保留这些键字段。
-6. 不要输出候选表之外的表名或字段名。
-7. 不要输出解释、Markdown、代码块。
-8. 如果完全不相关，输出空对象 `{{}}`。
+1. 输出一个 JSON 对象，且只能包含一个字段：`tables`。
+2. `tables` 的值必须是 JSON 对象。
+3. `tables` 对象的 key 必须是候选表中的表名。
+4. `tables` 对象的 value 必须是该表需要保留的字段名数组。
+5. 只保留与查询目标、筛选条件、分组维度、排序、时间条件相关的字段。
+6. 如果某张表被保留，且它的主键/外键对关联是必要的，也应保留这些键字段。
+7. 不要输出候选表之外的表名或字段名。
+8. 不要输出解释、Markdown、代码块。
+9. 如果完全不相关，输出 `{{"tables": {{}}}}`。
 
 示例输出：
 {{
-  "fact_order": ["order_amount", "date_id", "region_id"],
-  "dim_region": ["region_id", "region_name"],
-  "dim_date": ["date_id", "year"]
+  "tables": {{
+    "fact_order": ["order_amount", "date_id", "region_id"],
+    "dim_region": ["region_id", "region_name"],
+    "dim_date": ["date_id", "year"]
+  }}
 }}

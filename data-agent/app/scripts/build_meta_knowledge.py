@@ -15,6 +15,11 @@ from app.services.meta_knowledge_service import MetaKnowledgeService
 
 
 async def main(config_path: Path) -> None:
+    # 该脚本是“离线构建知识库”的统一入口：
+    # - Meta MySQL：沉淀表/字段/指标等结构化元数据（治理基线）
+    # - Qdrant：沉淀字段/指标语义向量（自然语言召回）
+    # - ES：沉淀字段取值倒排索引（值级匹配）
+    # 运行时问答链路只读这些索引，不直接扫描业务库元数据。
     embedding_client_manager.init()
     qdrant_client_manager.init()
     es_client_manager.init()

@@ -9,6 +9,7 @@ dependencies = [
   "cryptography",
   "elasticsearch[async]>=8,<9",
   "fastapi[standard]",
+  "grandalf>=0.8",
   "greenlet",
   "httpx",
   "jieba",

@@ -1,0 +1,150 @@
+# Local debug compose file.
+#
+# Usage:
+#   docker compose -f docker-compose-local.yaml up -d mysql qdrant elasticsearch
+#   docker compose -f docker-compose-local.yaml up meta-builder
+#   uv run fastapi dev main.py
+#
+# Optional tools:
+#   docker compose -f docker-compose-local.yaml --profile tools up -d kibana
+#   docker compose -f docker-compose-local.yaml --profile tei up -d embedding
+#
+# The FastAPI app is intentionally not defined here, so it can run in the host
+# Python process with breakpoints and local debugger attachment.
+#
+# Recommended local app environment:
+#   META_DB_HOST=127.0.0.1
+#   META_DB_PORT=33307
+#   DW_DB_HOST=127.0.0.1
+#   DW_DB_PORT=33307
+#   QDRANT_HOST=127.0.0.1
+#   QDRANT_PORT=6333
+#   ES_HOST=127.0.0.1
+#   ES_PORT=19200
+#   EMBEDDING_HOST=openai
+#   EMBEDDING_MODEL=text-embedding-v4
+
+name: data-agent-local
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: data-agent-local-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: data_agent
+      MYSQL_PASSWORD: DataAgent.123
+    ports:
+      - "${LOCAL_MYSQL_PORT:-33307}:3306"
+    volumes:
+      - mysql-local-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    container_name: data-agent-local-qdrant
+    ports:
+      - "${LOCAL_QDRANT_HTTP_PORT:-6333}:6333"
+      - "${LOCAL_QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant-local-data:/qdrant/storage
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.2
+    container_name: data-agent-local-es
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "${LOCAL_ES_PORT:-19200}:9200"
+    volumes:
+      - es-local-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
+  kibana:
+    profiles: ["tools"]
+    image: docker.elastic.co/kibana/kibana:8.17.2
+    container_name: data-agent-local-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "${LOCAL_KIBANA_PORT:-5601}:5601"
+
+  embedding:
+    profiles: ["tei"]
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: data-agent-local-embedding
+    platform: linux/amd64
+    command:
+      - --model-id
+      - BAAI/bge-large-zh-v1.5
+      - --port
+      - "80"
+    ports:
+      - "${LOCAL_EMBEDDING_PORT:-8081}:80"
+    volumes:
+      - hf-local-cache:/data
+
+  meta-builder:
+    build:
+      context: .
+      dockerfile: docker/agent/Dockerfile
+    container_name: data-agent-local-meta-builder
+    command: ["./docker/agent/build-meta.sh"]
+    environment:
+      META_DB_HOST: mysql
+      META_DB_PORT: 3306
+      META_DB_USER: data_agent
+      META_DB_PASSWORD: DataAgent.123
+      META_DB_NAME: meta
+      DW_DB_HOST: mysql
+      DW_DB_PORT: 3306
+      DW_DB_USER: data_agent
+      DW_DB_PASSWORD: DataAgent.123
+      DW_DB_NAME: dw
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      QDRANT_EMBEDDING_SIZE: ${QDRANT_EMBEDDING_SIZE:-1024}
+      ES_HOST: elasticsearch
+      ES_PORT: 9200
+      ES_INDEX_NAME: ${ES_INDEX_NAME:-data_agent}
+      # Keep metadata build vectors aligned with the local app. By default this
+      # follows .env and uses an OpenAI-compatible embedding endpoint. If you
+      # explicitly run the optional TEI profile, override these to
+      # EMBEDDING_HOST=embedding, EMBEDDING_PORT=80 and the matching model.
+      EMBEDDING_HOST: ${EMBEDDING_HOST:-openai}
+      EMBEDDING_PORT: ${EMBEDDING_PORT:-80}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-v4}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: "no"
+
+volumes:
+  mysql-local-data:
+  qdrant-local-data:
+  es-local-data:
+  hf-local-cache:

@@ -10,6 +10,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+ENV UV_HTTP_TIMEOUT=120
+
 COPY pyproject.toml uv.lock README.md ./
 COPY app ./app
 COPY conf ./conf

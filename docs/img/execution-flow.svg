@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1700" viewBox="0 0 1600 1700" role="img" aria-labelledby="title desc">
+  <title id="title">NL2SQL 执行流程架构图</title>
+  <desc id="desc">展示用户发起自然语言问数后，前端、FastAPI SSE 接口、QueryService、LangGraph 节点、知识库、数据库和模型之间的执行顺序。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .lane-title { font: 700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #1e293b; }
+      .box-title { font: 700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .box-text { font: 400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+      .small { font: 400 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .lane { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; }
+      .frontend { fill: #ecfeff; stroke: #0891b2; stroke-width: 1.6; }
+      .api { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.6; }
+      .agent { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 1.6; }
+      .data { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.6; }
+      .model { fill: #f0fdf4; stroke: #16a34a; stroke-width: 1.6; }
+      .decision { fill: #fefce8; stroke: #ca8a04; stroke-width: 1.8; }
+      .arrow { stroke: #334155; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .arrow-blue { stroke: #2563eb; stroke-width: 2.4; fill: none; marker-end: url(#arrowBlue); }
+      .arrow-dashed { stroke: #64748b; stroke-width: 1.8; fill: none; stroke-dasharray: 7 6; marker-end: url(#arrow); }
+      .label { font: 600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1700"/>
+  <text class="title" x="60" y="58">NL2SQL 执行流程架构图</text>
+  <text class="subtitle" x="60" y="88">一次自然语言问数请求从前端输入，到 LangGraph 多节点处理，再通过 SSE 返回进度、结论、SQL 和结果集。</text>
+
+  <rect class="lane" x="40" y="120" width="1520" height="155" rx="18"/>
+  <text class="lane-title" x="68" y="153">用户与前端交互层</text>
+
+  <rect class="frontend" x="80" y="178" width="270" height="70" rx="12"/>
+  <text class="box-title" x="215" y="206" text-anchor="middle">用户输入业务问题</text>
+  <text class="box-text" x="215" y="230" text-anchor="middle">例如：统计去年各地区销售总额</text>
+
+  <rect class="frontend" x="470" y="178" width="280" height="70" rx="12"/>
+  <text class="box-title" x="610" y="206" text-anchor="middle">QueryWorkspace</text>
+  <text class="box-text" x="610" y="230" text-anchor="middle">创建会话轮次、进度状态和取消控制器</text>
+
+  <rect class="frontend" x="870" y="178" width="300" height="70" rx="12"/>
+  <text class="box-title" x="1020" y="206" text-anchor="middle">streamQuery</text>
+  <text class="box-text" x="1020" y="230" text-anchor="middle">POST /api/query 并解析 text/event-stream</text>
+
+  <rect class="frontend" x="1280" y="178" width="220" height="70" rx="12"/>
+  <text class="box-title" x="1390" y="206" text-anchor="middle">结果展示</text>
+  <text class="box-text" x="1390" y="230" text-anchor="middle">进度、答案、SQL、图表和表格</text>
+
+  <path class="arrow" d="M350 213 H455"/>
+  <path class="arrow" d="M750 213 H855"/>
+  <path class="arrow" d="M1170 213 H1265"/>
+
+  <rect class="lane" x="40" y="310" width="1520" height="165" rx="18"/>
+  <text class="lane-title" x="68" y="343">FastAPI SSE 服务层</text>
+
+  <rect class="api" x="120" y="370" width="260" height="78" rx="12"/>
+  <text class="box-title" x="250" y="399" text-anchor="middle">query_router</text>
+  <text class="box-text" x="250" y="423" text-anchor="middle">/health 与 POST /api/query</text>
+
+  <rect class="api" x="500" y="370" width="280" height="78" rx="12"/>
+  <text class="box-title" x="640" y="399" text-anchor="middle">QueryService.query</text>
+  <text class="box-text" x="640" y="423" text-anchor="middle">封装 graph.astream 为 SSE data 事件</text>
+
+  <rect class="api" x="900" y="370" width="300" height="78" rx="12"/>
+  <text class="box-title" x="1050" y="399" text-anchor="middle">DataAgentState</text>
+  <text class="box-text" x="1050" y="423" text-anchor="middle">保存 query、keywords、sql、result_rows</text>
+
+  <rect class="api" x="1290" y="370" width="210" height="78" rx="12"/>
+  <text class="box-title" x="1395" y="399" text-anchor="middle">DataAgentContext</text>
+  <text class="box-text" x="1395" y="423" text-anchor="middle">注入仓储、模型和客户端</text>
+
+  <path class="arrow-blue" d="M1020 248 C1020 292 250 292 250 355"/>
+  <path class="arrow" d="M380 409 H485"/>
+  <path class="arrow" d="M780 409 H885"/>
+  <path class="arrow" d="M1200 409 H1275"/>
+
+  <rect class="lane" x="40" y="510" width="1160" height="1170" rx="18"/>
+  <text class="lane-title" x="68" y="543">LangGraph Agent 编排层</text>
+
+  <rect class="agent" x="515" y="575" width="260" height="76" rx="12"/>
+  <text class="box-title" x="645" y="604" text-anchor="middle">extract_keywords</text>
+  <text class="box-text" x="645" y="628" text-anchor="middle">从自然语言问题中抽取检索关键词</text>
+
+  <rect class="agent" x="145" y="705" width="250" height="84" rx="12"/>
+  <text class="box-title" x="270" y="735" text-anchor="middle">recall_column</text>
+  <text class="box-text" x="270" y="759" text-anchor="middle">扩展关键词并召回候选字段</text>
+
+  <rect class="agent" x="515" y="705" width="250" height="84" rx="12"/>
+  <text class="box-title" x="640" y="735" text-anchor="middle">recall_value</text>
+  <text class="box-text" x="640" y="759" text-anchor="middle">检索字段取值，辅助定位过滤条件</text>
+
+  <rect class="agent" x="885" y="705" width="250" height="84" rx="12"/>
+  <text class="box-title" x="1010" y="735" text-anchor="middle">recall_metric</text>
+  <text class="box-text" x="1010" y="759" text-anchor="middle">召回业务指标及相关度量字段</text>
+
+  <rect class="agent" x="515" y="835" width="260" height="80" rx="12"/>
+  <text class="box-title" x="645" y="865" text-anchor="middle">merge_retrieved_info</text>
+  <text class="box-text" x="645" y="889" text-anchor="middle">合并字段、取值、指标召回结果</text>
+
+  <rect class="agent" x="320" y="965" width="250" height="80" rx="12"/>
+  <text class="box-title" x="445" y="995" text-anchor="middle">filter_table</text>
+  <text class="box-text" x="445" y="1019" text-anchor="middle">筛选最小必要表和字段上下文</text>
+
+  <rect class="agent" x="720" y="965" width="250" height="80" rx="12"/>
+  <text class="box-title" x="845" y="995" text-anchor="middle">filter_metric</text>
+  <text class="box-text" x="845" y="1019" text-anchor="middle">筛选本次问题真正相关的指标</text>
+
+  <rect class="agent" x="515" y="1095" width="260" height="80" rx="12"/>
+  <text class="box-title" x="645" y="1125" text-anchor="middle">add_extra_context</text>
+  <text class="box-text" x="645" y="1149" text-anchor="middle">补充日期、数据库方言和版本信息</text>
+
+  <rect class="agent" x="515" y="1225" width="260" height="80" rx="12"/>
+  <text class="box-title" x="645" y="1255" text-anchor="middle">generate_sql</text>
+  <text class="box-text" x="645" y="1279" text-anchor="middle">基于约束上下文调用 LLM 生成 SQL</text>
+
+  <rect class="agent" x="515" y="1355" width="260" height="80" rx="12"/>
+  <text class="box-title" x="645" y="1385" text-anchor="middle">validate_sql</text>
+  <text class="box-text" x="645" y="1409" text-anchor="middle">SQL 安全检查与 EXPLAIN 校验</text>
+
+  <path class="decision" d="M645 1468 L755 1520 L645 1572 L535 1520 Z"/>
+  <text class="box-title" x="645" y="1515" text-anchor="middle">校验通过？</text>
+  <text class="small" x="645" y="1537" text-anchor="middle">error 是否为空</text>
+
+  <rect class="agent" x="250" y="1588" width="250" height="78" rx="12"/>
+  <text class="box-title" x="375" y="1617" text-anchor="middle">correct_sql</text>
+  <text class="box-text" x="375" y="1641" text-anchor="middle">失败时用错误信息修正 SQL</text>
+
+  <rect class="agent" x="790" y="1588" width="250" height="78" rx="12"/>
+  <text class="box-title" x="915" y="1617" text-anchor="middle">execute_sql</text>
+  <text class="box-text" x="915" y="1641" text-anchor="middle">在 MySQL(dw) 执行查询并返回行数据</text>
+
+  <rect class="agent" x="1095" y="1588" width="250" height="78" rx="12"/>
+  <text class="box-title" x="1220" y="1617" text-anchor="middle">summarize_answer</text>
+  <text class="box-text" x="1220" y="1641" text-anchor="middle">流式生成业务结论和最终 result 事件</text>
+
+  <path class="arrow" d="M645 448 V560"/>
+  <path class="arrow" d="M645 651 C645 681 270 676 270 690"/>
+  <path class="arrow" d="M645 651 V690"/>
+  <path class="arrow" d="M645 651 C645 681 1010 676 1010 690"/>
+  <path class="arrow" d="M270 789 C270 825 645 804 645 820"/>
+  <path class="arrow" d="M640 789 V820"/>
+  <path class="arrow" d="M1010 789 C1010 825 645 804 645 820"/>
+  <path class="arrow" d="M645 915 C645 945 445 939 445 950"/>
+  <path class="arrow" d="M645 915 C645 945 845 939 845 950"/>
+  <path class="arrow" d="M445 1045 C445 1080 645 1071 645 1080"/>
+  <path class="arrow" d="M845 1045 C845 1080 645 1071 645 1080"/>
+  <path class="arrow" d="M645 1175 V1210"/>
+  <path class="arrow" d="M645 1305 V1340"/>
+  <path class="arrow" d="M645 1435 V1454"/>
+  <path class="arrow" d="M535 1520 C470 1520 375 1532 375 1573"/>
+  <text class="label" x="430" y="1505">否</text>
+  <path class="arrow" d="M755 1520 C820 1520 915 1532 915 1573"/>
+  <text class="label" x="826" y="1505">是</text>
+  <path class="arrow" d="M500 1627 H775"/>
+  <path class="arrow" d="M1040 1627 H1080"/>
+
+  <rect class="lane" x="1230" y="510" width="330" height="1170" rx="18"/>
+  <text class="lane-title" x="1258" y="543">外部能力与数据源</text>
+
+  <rect class="model" x="1270" y="590" width="250" height="76" rx="12"/>
+  <text class="box-title" x="1395" y="619" text-anchor="middle">Embedding 服务</text>
+  <text class="box-text" x="1395" y="643" text-anchor="middle">查询关键词向量化</text>
+
+  <rect class="data" x="1270" y="705" width="250" height="76" rx="12"/>
+  <text class="box-title" x="1395" y="734" text-anchor="middle">Qdrant</text>
+  <text class="box-text" x="1395" y="758" text-anchor="middle">字段向量库与指标向量库</text>
+
+  <rect class="data" x="1270" y="820" width="250" height="76" rx="12"/>
+  <text class="box-title" x="1395" y="849" text-anchor="middle">Elasticsearch</text>
+  <text class="box-text" x="1395" y="873" text-anchor="middle">字段取值全文索引</text>
+
+  <rect class="data" x="1270" y="935" width="250" height="76" rx="12"/>
+  <text class="box-title" x="1395" y="964" text-anchor="middle">MySQL(meta)</text>
+  <text class="box-text" x="1395" y="988" text-anchor="middle">表、字段、指标元数据</text>
+
+  <rect class="model" x="1270" y="1115" width="250" height="76" rx="12"/>
+  <text class="box-title" x="1395" y="1144" text-anchor="middle">OpenAI 兼容 LLM</text>
+  <text class="box-text" x="1395" y="1168" text-anchor="middle">关键词扩展、过滤、SQL、结论</text>
+
+  <rect class="data" x="1270" y="1325" width="250" height="76" rx="12"/>
+  <text class="box-title" x="1395" y="1354" text-anchor="middle">MySQL(dw)</text>
+  <text class="box-text" x="1395" y="1378" text-anchor="middle">零售事实表与维度表，执行 EXPLAIN/SQL</text>
+
+  <path class="arrow-dashed" d="M395 735 C720 700 1160 625 1255 625"/>
+  <path class="arrow-dashed" d="M1135 735 C1190 735 1210 743 1255 743"/>
+  <path class="arrow-dashed" d="M765 745 C980 745 1110 850 1255 858"/>
+  <path class="arrow-dashed" d="M775 875 C980 875 1110 968 1255 973"/>
+  <path class="arrow-dashed" d="M570 1005 C920 1005 1090 1143 1255 1153"/>
+  <path class="arrow-dashed" d="M970 1005 C1100 1005 1165 1125 1255 1153"/>
+  <path class="arrow-dashed" d="M775 1265 C970 1265 1070 1158 1255 1153"/>
+  <path class="arrow-dashed" d="M775 1395 C980 1395 1080 1370 1255 1363"/>
+  <path class="arrow-dashed" d="M1040 1620 C1225 1600 1240 1390 1255 1363"/>
+  <path class="arrow-dashed" d="M1220 1588 C1240 1475 1255 1190 1255 1153"/>
+
+  <path class="arrow-blue" d="M1220 1666 C1220 1682 1390 1682 1390 1565 C1390 1500 1510 1430 1510 250"/>
+  <text class="label" x="1268" y="1684">SSE: progress / answer / result / error</text>
+</svg>
