@@ -46,6 +46,19 @@ async def recall_column(state: DataAgentState, runtime: Runtime[DataAgentContext
     - 最终输出：
       - `{"retrieved_columns": [ColumnInfo(...), ...]}`
 
+    真实运行样例（对应日志）：
+    - 问题：`统计去年各地区的销售总额`
+    - 扩展关键词（示例）：
+      - `地区`、`收入`、`省份`、`年份`、`统计` 等
+    - 召回字段（示例）：
+      - `dim_region.region_name`
+      - `dim_region.region_id`
+      - `fact_order.region_id`
+      - `dim_region.province`
+      - `fact_order.order_amount`
+      - `dim_date.year`
+    - 这些候选字段会在下游被进一步过滤，最终只保留当前问题真正需要的列。
+
     为什么需要这一层：
     - 用户说的是业务语言，库里存的是字段名；
     - “品类”不一定叫 `category_name`，“销售额”也不一定直接叫 `sales_amount`；
@@ -97,6 +110,10 @@ async def recall_column(state: DataAgentState, runtime: Runtime[DataAgentContext
         # - LLM 扩展：["地区", "区域", "类目", "销售金额"]
         # - 合并后：["华东地区", "销售额", "品类", "地区", "区域", "类目", "销售金额"]
         #
+        # 本次真实日志中，这一步最终会形成类似：
+        # - ["统计", "地区", "销售总额", "去年", "收入", "省份", "年份", ...]
+        # 这些词会逐个进入向量召回。
+        #
         # 这一步的目标是同时保留：
         # - 原始业务表达
         # - 更贴近库内字段命名的表达
@@ -111,6 +128,9 @@ async def recall_column(state: DataAgentState, runtime: Runtime[DataAgentContext
             # - `品类` 可能命中 `dim_product.category_name`
             # - `销售金额` 可能命中 `fact_order.amount`
             # - `地区` 可能命中 `dim_region.region_name`
+            #
+            # 本次真实日志里，和“地区/销售总额”语义接近的字段会被持续命中，
+            # 例如 `dim_region.region_name`、`fact_order.order_amount`、`dim_date.year`。
             #
             # 多个词可能反复命中同一个字段，所以最后统一按字段 id 去重。
             # 先把当前关键词转成 embedding 向量。
@@ -150,6 +170,9 @@ async def recall_column(state: DataAgentState, runtime: Runtime[DataAgentContext
             logger.info(f"召回字段检索结果: keyword={keyword}, hit_count={len(columns)}")
             for column in columns:
                 # 以字段 id 为 key 写入 map，目的是去重。
+                # 这里可以直接访问 `column.id`，因为 `column_qdrant_repository.search`
+                # 会把 Qdrant payload 反序列化为 `ColumnInfo` 对象，而 `ColumnInfo`
+                # 数据类中明确声明了 `id` 字段（见 `app/entities/column_info.py`）。
                 #
                 # 因为不同关键词可能会命中同一个字段，例如：
                 # - `销售额`
@@ -163,6 +186,7 @@ async def recall_column(state: DataAgentState, runtime: Runtime[DataAgentContext
 
         # 第 4 步：把 map 转回列表，供下游 `merge_retrieved_info` 继续整合。
         retrieved_columns = list(columns_map.values())
+        logger.info(f"召回字段对象列表: {[column.id for column in retrieved_columns]}")
         emit_progress(
             writer,
             "召回字段",

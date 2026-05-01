@@ -1,0 +1,84 @@
+# Kibana Dev Tools snippets for recall_value debugging.
+# Usage:
+# 1) Open Kibana -> Dev Tools
+# 2) Copy one block at a time to run
+
+### 0) List indices
+GET /_cat/indices?v&s=index
+
+### 1) Inspect data_agent mapping
+GET /data_agent/_mapping
+
+### 2) Sample documents
+GET /data_agent/_search
+{
+  "size": 5
+}
+
+### 3) Single-keyword search (simulate recall_value one keyword)
+GET /data_agent/_search
+{
+  "size": 20,
+  "_source": true,
+  "query": {
+    "query_string": {
+      "query": "华东"
+    }
+  }
+}
+
+### 4) Multi-keyword search (simulate expanded keywords)
+GET /data_agent/_search
+{
+  "size": 50,
+  "_source": true,
+  "query": {
+    "bool": {
+      "should": [
+        { "query_string": { "query": "全国" } },
+        { "query_string": { "query": "地区" } },
+        { "query_string": { "query": "省份" } },
+        { "query_string": { "query": "大区" } },
+        { "query_string": { "query": "年份" } }
+      ],
+      "minimum_should_match": 1
+    }
+  }
+}
+
+### 5) Aggregation: which table/column are being matched
+# NOTE: Keep field names aligned with your current mapping.
+GET /data_agent/_search
+{
+  "size": 0,
+  "query": {
+    "query_string": {
+      "query": "全国 OR 地区 OR 省份 OR 大区"
+    }
+  },
+  "aggs": {
+    "by_table": {
+      "terms": {
+        "field": "table_id.keyword",
+        "size": 20
+      }
+    },
+    "by_column": {
+      "terms": {
+        "field": "column_id.keyword",
+        "size": 50
+      }
+    }
+  }
+}
+
+### 6) Exact id match example
+GET /data_agent/_search
+{
+  "size": 20,
+  "query": {
+    "term": {
+      "id.keyword": "dim_region.country.中国"
+    }
+  }
+}

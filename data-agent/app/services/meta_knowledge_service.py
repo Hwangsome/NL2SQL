@@ -64,17 +64,41 @@ class MetaKnowledgeService:
     - 不只用 ES：ES 擅长关键词/倒排检索，但对同义语义（如“销售额”≈“order_amount”）不稳定。
     - 三层分工可让构建与运行各司其职：离线构建成本可控，在线检索延迟更低且结果更稳。
 
-    再换一种业务视角理解“Qdrant + ES”：
-    - 如果只有 Qdrant：
-      - 能较好处理“销售额≈order_amount”；
-      - 但对“华东”这种具体取值，未必总能稳定定位到 `dim_region.region_name`。
-    - 如果只有 ES：
-      - 能较好命中“华东/已支付/苹果”等具体值；
-      - 但对“销售额/成交金额/GMV”这类同义语义泛化较弱。
-    - 两者并行召回再合并：
-      - Qdrant 给“候选字段/指标范围”；
-      - ES 给“值 -> 字段”的硬映射；
-      - 最终 SQL 更容易同时选对列名和过滤条件。
+    再换一种业务视角理解“Qdrant + ES”（用同一条问题做对比）：
+    - 示例问题 A：
+      - 用户问：“统计华东大区上周已支付订单的销售额”
+      - 业务语义拆解：
+        - 指标：销售额（可能对应 `fact_order.order_amount`）
+        - 地区值：华东（可能对应 `dim_region.region_name`）
+        - 状态值：已支付（可能对应 `fact_order.order_status`）
+    - 如果只有 Qdrant（偏语义）：
+      - 优势：能把“销售额/成交金额/GMV”召回到 `order_amount` 这类指标字段；
+      - 风险：对“华东/已支付”这种值词，常只能拿到“像地区字段/状态字段”的候选，
+        但不一定稳定锁定到具体列。
+      - 可能结果：
+        - 选对了 `SUM(fact_order.order_amount)`，
+        - 但 where 可能写成 `fact_order.region = '华东'`（列名未必真实存在）。
+    - 如果只有 ES（偏值匹配）：
+      - 优势：能把“华东 -> dim_region.region_name”“已支付 -> fact_order.order_status”
+        这类值到字段的映射命中得很准；
+      - 风险：对“销售额”这种业务同义词，若索引中没有完全一致词项，可能只召回
+        `amount`/`price` 等不完整候选，甚至漏召回指标字段。
+      - 可能结果：
+        - where 条件较准：`region_name='华东' AND order_status='已支付'`，
+        - 但 select 可能错用 `SUM(fact_order.order_cnt)` 或无法确定该聚合哪一列。
+    - 两者并行召回再合并（推荐）：
+      - Qdrant 提供“指标/字段语义候选池”（例如优先锁定 `order_amount`）；
+      - ES 提供“值 -> 字段”的硬证据（例如 `华东 -> region_name`）；
+      - 合并后更容易得到完整且可执行的 SQL，例如：
+        - `SELECT SUM(f.order_amount)`
+        - `FROM fact_order f JOIN dim_region r ON f.region_id = r.region_id`
+        - `WHERE r.region_name = '华东' AND f.order_status = '已支付'`
+        - `AND f.order_date BETWEEN ...`
+    - 示例问题 B（补充）：
+      - 用户问：“苹果手机在华南的成交金额”
+      - Qdrant 更擅长把“成交金额”映射到金额指标列；
+      - ES 更擅长把“苹果/华南”映射到商品名列与地区列；
+      - 组合后才能同时选对“聚合列 + 两个过滤列”。
     """
     def __init__(
         self,

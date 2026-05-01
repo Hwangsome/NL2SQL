@@ -40,6 +40,15 @@ async def recall_value(state: DataAgentState, runtime: Runtime[DataAgentContext]
       - `dim_product.category_name = 手机`
     - 最终返回的是值对象列表，而不是字段列表。
 
+    真实运行样例（对应日志）：
+    - 问题：`统计去年各地区的销售总额`
+    - 扩展关键词（示例）：
+      - `全国`、`地区`、`省份`、`大区`、`年份`、`统计` 等
+    - ES 命中的值（示例）：
+      - `dim_region.country.中国`
+    - 这些值会在 `merge_retrieved_info` 阶段反向补充到对应字段的 examples 中，
+      帮助后续 SQL 生成理解“用户可能在筛哪些取值”。
+
     业务意义：
     - 字段召回负责找到“可能相关的列”；
     - 值召回负责告诉系统“用户这次说的华东/黄金会员/手机，可能是哪个列上的值”。
@@ -79,6 +88,9 @@ async def recall_value(state: DataAgentState, runtime: Runtime[DataAgentContext]
         # - 上游：["华东地区", "销售额", "品类"]
         # - LLM：["华东", "地区", "区域"]
         # - 合并后：["华东地区", "销售额", "品类", "华东", "地区", "区域"]
+        #
+        # 在“统计去年各地区的销售总额”样例里，这里会出现“全国/大区/省份”等词，
+        # 用于提高地区类值在 ES 中的命中概率。
         keywords = list(set(keywords + [str(item) for item in result if str(item).strip()]))
         logger.info(f"召回字段取值扩展关键词: {keywords}")
 
@@ -91,6 +103,13 @@ async def recall_value(state: DataAgentState, runtime: Runtime[DataAgentContext]
             # - 关键词 `品类` 可能命中一些类目名相关值
             #
             # 这里按 value id 去重，避免同一个值被多个词重复命中。
+            # 对应本次真实日志，`dim_region.country.中国` 就是这一步命中的一个值样例。
+            #    {
+            #   "id": "dim_region.region_name.华东",
+            #    "value": "华东",
+            #   "column_id": "dim_region.region_name"
+          #   }
+            # 
             values = await value_es_repository.search(keyword)
             for value in values:
                 values_map[value.id] = value
@@ -98,6 +117,7 @@ async def recall_value(state: DataAgentState, runtime: Runtime[DataAgentContext]
         # 第 4 步：把命中的值列表交给 `merge_retrieved_info`，
         # 让它反向补字段并写入 examples。
         retrieved_values = list(values_map.values())
+        logger.info(f"召回字段取值对象列表: {[value.id for value in retrieved_values]}")
         emit_progress(
             writer,
             "召回字段取值",

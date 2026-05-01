@@ -41,6 +41,16 @@ async def recall_metric(state: DataAgentState, runtime: Runtime[DataAgentContext
     - 最终按指标 id 去重，返回：
       - `{"retrieved_metrics": [MetricInfo(name="销售额", ...), ...]}`
 
+    真实运行样例（对应日志）：
+    - 问题：`统计去年各地区的销售总额`
+    - 扩展关键词（示例）：
+      - `地区`、`统计`、`销售收入`、`销售总额`、`营收` 等
+    - 召回指标（示例）：
+      - `GMV`
+      - `AOV`
+    - 下游 `filter_metric` 会再二次筛选，最终通常只保留与问题最相关的指标
+      （本次日志里最终保留的是 `GMV`）。
+
     业务意义：
     - 用户常用“销售额”“客单价”“销量”这些业务词提问；
     - 而系统要靠指标元数据才能知道具体该怎么聚合、依赖哪些字段。
@@ -79,6 +89,9 @@ async def recall_metric(state: DataAgentState, runtime: Runtime[DataAgentContext
         # - 上游：["销售额", "品类"]
         # - 扩展：["销售金额", "成交金额", "GMV"]
         # - 合并后一起做向量检索，扩大命中面。
+        #
+        # 在“统计去年各地区的销售总额”这个样例中，
+        # 日志中可见该阶段会出现“销售收入/营收/销售总额”等同义词。
         keywords = list(set(keywords + [str(item) for item in result if str(item).strip()]))
         logger.info(f"召回指标扩展关键词: {keywords}")
 
@@ -89,6 +102,9 @@ async def recall_metric(state: DataAgentState, runtime: Runtime[DataAgentContext
             # 例子：
             # - `GMV` 和 `销售金额` 可能都会命中同一个指标“销售额”
             # - 所以这里统一按指标 id 合并，避免重复。
+            #
+            # 对应真实日志，`GMV` 与 `AOV` 都可能先被召回，
+            # 但是否保留要看后续问题意图过滤结果。
             query_vector = await embedding_client.aembed_query(keyword)
             metrics = await metric_qdrant_repository.search(query_vector)
             for metric in metrics:

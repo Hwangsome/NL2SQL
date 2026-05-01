@@ -1,3 +1,41 @@
+# merge_retrieved_info 节点业务总览（基于当前实现）
+#
+# 核心职责：
+# - 将三路召回结果（字段、字段值、指标）做融合、去重、补全与结构化，
+#   产出下游 SQL 生成可直接消费的 table_infos / metric_infos。
+#
+# 7 个步骤：
+# 1) 字段去重收敛
+#    - 输入 retrieved_columns，按 column_id 去重为 retrieved_columns_map。
+#
+# 2) 根据指标补齐字段
+#    - 遍历 retrieved_metrics.relevant_columns；
+#    - 缺失字段从 Meta 库补齐，避免“有指标无落地字段”。
+#
+# 3) 根据字段值补字段并回填 examples
+#    - 遍历 retrieved_values（value -> column_id）；
+#    - 缺失字段补齐，并将 value 回填到字段 examples，增强值-字段对应关系。
+#
+# 4) 按表归组字段
+#    - 将 retrieved_columns_map 按 table_id 转为 table_to_columns_map。
+#
+# 5) 补齐关键连接字段（主键/外键）
+#    - 对候选表补 key columns，确保后续 SQL 具备稳定 JOIN 能力。
+#
+# 6) 组装 table_infos
+#    - 将表和字段整理为 prompt 友好结构（name/role/description/columns）。
+#
+# 7) 组装 metric_infos
+#    - 将指标整理为 prompt 友好结构（name/description/relevant_columns/alias）。
+#
+# 设计要点：
+# - 延迟补全：先广召回，再按需补关键字段，减少无效噪声。
+# - 双向收敛：值可反推字段并增强 examples，帮助 LLM 理解过滤条件。
+# - 可执行性优先：关键连接键补全是 SQL 可执行成功率的重要保障。
+#
+import json
+from dataclasses import asdict, is_dataclass
+
 from langgraph.runtime import Runtime
 
 from app.agent.context import DataAgentContext
@@ -7,7 +45,11 @@ from app.core.log import logger
 from app.entities.column_info import ColumnInfo
 from app.entities.table_info import TableInfo
 
+"""
 
+
+
+"""
 async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgentContext]):
     """
     将字段、字段值、指标三路召回结果整理成后续 SQL 生成可直接消费的结构化上下文。
@@ -72,7 +114,238 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
     retrieved_columns = state.get("retrieved_columns", [])
     retrieved_values = state.get("retrieved_values", [])
     retrieved_metrics = state.get("retrieved_metrics", [])
+    """
+{
+    "retrieved_columns": [
+        {
+            "id": "dim_region.region_name",
+            "name": "region_name",
+            "type": "varchar",
+            "role": "dimension",
+            "examples": [
+                "华北",
+                "华东",
+                "华南"
+            ],
+            "description": "订单所属的大区名称，如华东、华南等。",
+            "alias": [
+                "地区",
+                "区域",
+                "大区"
+            ],
+            "table_id": "dim_region"
+        },
+        {
+            "id": "dim_region.region_id",
+            "name": "region_id",
+            "type": "int",
+            "role": "primary_key",
+            "examples": [
+                1,
+                2,
+                3
+            ],
+            "description": "地区唯一标识。",
+            "alias": [
+                "地区ID",
+                "区域ID"
+            ],
+            "table_id": "dim_region"
+        },
+        {
+            "id": "fact_order.region_id",
+            "name": "region_id",
+            "type": "int",
+            "role": "foreign_key",
+            "examples": [
+                1,
+                2,
+                3
+            ],
+            "description": "关联地区维度的外键。",
+            "alias": [
+                "地区ID",
+                "区域ID"
+            ],
+            "table_id": "fact_order"
+        },
+        {
+            "id": "dim_region.province",
+            "name": "province",
+            "type": "varchar",
+            "role": "dimension",
+            "examples": [
+                "北京",
+                "上海",
+                "广东"
+            ],
+            "description": "订单所属的省份名称。",
+            "alias": [
+                "省份",
+                "省",
+                "所在省份"
+            ],
+            "table_id": "dim_region"
+        },
+        {
+            "id": "dim_product.category",
+            "name": "category",
+            "type": "varchar",
+            "role": "dimension",
+            "examples": [
+                "笔记本",
+                "手机",
+                "电视"
+            ],
+            "description": "商品所属品类。",
+            "alias": [
+                "商品类别",
+                "品类",
+                "分类"
+            ],
+            "table_id": "dim_product"
+        },
+        {
+            "id": "fact_order.order_amount",
+            "name": "order_amount",
+            "type": "decimal",
+            "role": "measure",
+            "examples": [
+                8999,
+                5999,
+                6998
+            ],
+            "description": "订单金额。",
+            "alias": [
+                "销售额",
+                "订单金额",
+                "收入"
+            ],
+            "table_id": "fact_order"
+        },
+        {
+            "id": "fact_order.order_quantity",
+            "name": "order_quantity",
+            "type": "int",
+            "role": "measure",
+            "examples": [
+                1,
+                2,
+                3
+            ],
+            "description": "订单中商品的购买数量。",
+            "alias": [
+                "销量",
+                "购买数量",
+                "件数"
+            ],
+            "table_id": "fact_order"
+        }
+    ],
+    "retrieved_values": [
+        {
+            "id": "dim_region.region_name.华东",
+            "value": "华东",
+            "column_id": "dim_region.region_name"
+        },
+        {
+            "id": "dim_region.province.广东",
+            "value": "广东",
+            "column_id": "dim_region.province"
+        },
+        {
+            "id": "dim_region.region_name.华北",
+            "value": "华北",
+            "column_id": "dim_region.region_name"
+        },
+        {
+            "id": "dim_region.region_name.华南",
+            "value": "华南",
+            "column_id": "dim_region.region_name"
+        },
+        {
+            "id": "dim_product.brand.华为",
+            "value": "华为",
+            "column_id": "dim_product.brand"
+        },
+        {
+            "id": "dim_customer.member_level.黄金",
+            "value": "黄金",
+            "column_id": "dim_customer.member_level"
+        }
+    ],
+    "retrieved_metrics": [
+        {
+            "id": "GMV",
+            "name": "GMV",
+            "description": "全称Gross Merchandise Value，表示所有订单的成交金额总和。",
+            "relevant_columns": [
+                "fact_order.order_amount"
+            ],
+            "alias": [
+                "成交总额",
+                "订单总额"
+            ]
+        },
+        {
+            "id": "AOV",
+            "name": "AOV",
+            "description": "全称Average Order Value，表示平均每笔订单的成交金额。",
+            "relevant_columns": [
+                "fact_order.order_amount",
+                "fact_order.order_quantity"
+            ],
+            "alias": [
+                "客单价",
+                "平均订单金额"
+            ]
+        }
+    ]
+}
+
+    """
+    logger.info(
+        "合并召回信息输入(JSON): "
+        + json.dumps(
+            {
+                "retrieved_columns": retrieved_columns,
+                "retrieved_values": retrieved_values,
+                "retrieved_metrics": retrieved_metrics,
+            },
+            ensure_ascii=False,
+            default=lambda obj: (
+                asdict(obj)
+                if is_dataclass(obj)
+                else (obj.__dict__ if hasattr(obj, "__dict__") else str(obj))
+            ),
+        )
+    )
     meta_mysql_repository = runtime.context["meta_mysql_repository"]
+
+    def _to_jsonable(value: object):
+        """把节点内对象转成可 JSON 序列化结构。"""
+        if is_dataclass(value):
+            return asdict(value)
+        if isinstance(value, dict):
+            return {str(k): _to_jsonable(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_to_jsonable(item) for item in value]
+        if hasattr(value, "__dict__"):
+            return {k: _to_jsonable(v) for k, v in value.__dict__.items()}
+        return value
+
+    def _log_step_json(step: int, desc: str, payload: dict):
+        logger.info(
+            "合并召回信息步骤(JSON): "
+            + json.dumps(
+                {
+                    "step": step,
+                    "desc": desc,
+                    "payload": _to_jsonable(payload),
+                },
+                ensure_ascii=False,
+            )
+        )
 
     try:
         # 第 1 步：先把“字段召回结果”按字段 id 收敛成 map。
@@ -93,6 +366,15 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
         retrieved_columns_map: dict[str, ColumnInfo] = {
             retrieved_column.id: retrieved_column for retrieved_column in retrieved_columns
         }
+        _log_step_json(
+            1,
+            "字段去重收敛",
+            {
+                "retrieved_columns_map": retrieved_columns_map,
+                "retrieved_columns_map_count": len(retrieved_columns_map),
+                "retrieved_columns_map_ids": list(retrieved_columns_map.keys()),
+            },
+        )
 
         # 第 2 步：根据指标补齐字段。
         #
@@ -119,6 +401,16 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
                     column_info = await meta_mysql_repository.get_column_info_by_id(relevant_column)
                     if column_info is not None:
                         retrieved_columns_map[relevant_column] = column_info
+        _log_step_json(
+            2,
+            "根据指标补齐字段",
+            {
+                "retrieved_columns_map": retrieved_columns_map,
+                "retrieved_metrics_count": len(retrieved_metrics),
+                "retrieved_columns_map_count_after_metric_patch": len(retrieved_columns_map),
+                "retrieved_columns_map_ids_after_metric_patch": list(retrieved_columns_map.keys()),
+            },
+        )
 
         # 第 3 步：根据字段值召回补齐字段，并把命中的值挂到字段 examples 上。
         #
@@ -154,6 +446,16 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
                     retrieved_columns_map[column_id] = column_info
             if column_id in retrieved_columns_map and column_value not in retrieved_columns_map[column_id].examples:
                 retrieved_columns_map[column_id].examples.append(column_value)
+        _log_step_json(
+            3,
+            "根据字段值补字段并回填 examples",
+            {
+                "retrieved_columns_map": retrieved_columns_map,
+                "retrieved_values_count": len(retrieved_values),
+                "retrieved_columns_map_count_after_value_patch": len(retrieved_columns_map),
+                "retrieved_columns_map_ids_after_value_patch": list(retrieved_columns_map.keys()),
+            },
+        )
 
         # 第 4 步：把字段按所属表归组。
         #
@@ -178,6 +480,17 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
         table_to_columns_map: dict[str, list[ColumnInfo]] = {}
         for column in retrieved_columns_map.values():
             table_to_columns_map.setdefault(column.table_id, []).append(column)
+        _log_step_json(
+            4,
+            "按表归组字段",
+            {
+                "retrieved_columns_map": retrieved_columns_map,
+                "table_count": len(table_to_columns_map),
+                "table_to_columns": {
+                    table_id: [column.id for column in columns] for table_id, columns in table_to_columns_map.items()
+                },
+            },
+        )
 
         # 第 5 步：为每张候选表补齐关键连接字段。
         #
@@ -213,6 +526,16 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
             for key_column in key_columns:
                 if key_column.id not in existing_ids:
                     table_to_columns_map[table_id].append(key_column)
+        _log_step_json(
+            5,
+            "补齐关键连接字段",
+            {
+                "table_to_columns_map": table_to_columns_map,
+                "table_to_columns_after_key_patch": {
+                    table_id: [column.id for column in columns] for table_id, columns in table_to_columns_map.items()
+                }
+            },
+        )
 
         # 第 6 步：将“表实体 + 字段实体”整理成 prompt 更容易消费的 dict 结构。
         #
@@ -262,6 +585,18 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
                     ],
                 )
             )
+        _log_step_json(
+            6,
+            "组装 table_infos",
+            {
+                "table_to_columns_map": table_to_columns_map,
+                "table_infos_count": len(table_infos),
+                "table_info_names": [
+                    table_info.get("name", "") if isinstance(table_info, dict) else getattr(table_info, "name", "")
+                    for table_info in table_infos
+                ],
+            },
+        )
 
         # 第 7 步：将指标实体压平成 prompt 友好的结构。
         #
@@ -293,6 +628,20 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
             )
             for metric_info in retrieved_metrics
         ]
+        _log_step_json(
+            7,
+            "组装 metric_infos",
+            {
+                "metric_infos_count": len(metric_infos),
+                "metric_info_names": [
+                    metric_info.get("name", "")
+                    if isinstance(metric_info, dict)
+                    else getattr(metric_info, "name", "")
+                    for metric_info in metric_infos
+                ],
+                "metric_infos": metric_infos,
+            },
+        )
 
         # 到这里，三路召回结果已经被整理成两份核心上下文：
         # - table_infos: 候选表 + 候选字段 + 字段示例值
@@ -323,6 +672,403 @@ async def merge_retrieved_info(state: DataAgentState, runtime: Runtime[DataAgent
             f"合并召回信息完成: tables={[table_info['name'] for table_info in table_infos]}, "
             f"metrics={[metric_info['name'] for metric_info in metric_infos]}"
         )
+        logger.info(
+            "合并召回信息输出(JSON): "
+            + json.dumps(
+                {"table_infos": table_infos, "metric_infos": metric_infos},
+                ensure_ascii=False,
+            )
+        )
+        """
+{
+    "table_infos": [
+        {
+            "name": "fact_order",
+            "role": "fact",
+            "description": "订单事实表，记录订单数量和金额等核心指标。",
+            "columns": [
+                {
+                    "name": "order_amount",
+                    "type": "decimal",
+                    "role": "measure",
+                    "examples": [
+                        8999,
+                        5999,
+                        6998
+                    ],
+                    "description": "订单金额。",
+                    "alias": [
+                        "销售额",
+                        "订单金额",
+                        "收入"
+                    ]
+                },
+                {
+                    "name": "order_quantity",
+                    "type": "int",
+                    "role": "measure",
+                    "examples": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "description": "订单中商品的购买数量。",
+                    "alias": [
+                        "销量",
+                        "购买数量",
+                        "件数"
+                    ]
+                },
+                {
+                    "name": "region_id",
+                    "type": "int",
+                    "role": "foreign_key",
+                    "examples": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "description": "关联地区维度的外键。",
+                    "alias": [
+                        "地区ID",
+                        "区域ID"
+                    ]
+                },
+                {
+                    "name": "customer_id",
+                    "type": "int",
+                    "role": "foreign_key",
+                    "examples": [
+                        "[",
+                        "1",
+                        "0",
+                        "0",
+                        "1",
+                        ",",
+                        " ",
+                        "1",
+                        "0",
+                        "0",
+                        "2",
+                        ",",
+                        " ",
+                        "1",
+                        "0",
+                        "0",
+                        "3",
+                        "]"
+                    ],
+                    "description": "关联客户维度的外键。",
+                    "alias": [
+                        "[",
+                        "\"",
+                        "客",
+                        "户",
+                        "I",
+                        "D",
+                        "\"",
+                        ",",
+                        " ",
+                        "\"",
+                        "用",
+                        "户",
+                        "I",
+                        "D",
+                        "\"",
+                        "]"
+                    ]
+                },
+                {
+                    "name": "date_id",
+                    "type": "int",
+                    "role": "foreign_key",
+                    "examples": [
+                        "[",
+                        "2",
+                        "0",
+                        "2",
+                        "4",
+                        "0",
+                        "1",
+                        "1",
+                        "5",
+                        ",",
+                        " ",
+                        "2",
+                        "0",
+                        "2",
+                        "4",
+                        "0",
+                        "3",
+                        "0",
+                        "8",
+                        ",",
+                        " ",
+                        "2",
+                        "0",
+                        "2",
+                        "4",
+                        "0",
+                        "6",
+                        "1",
+                        "8",
+                        "]"
+                    ],
+                    "description": "关联时间维度的外键。",
+                    "alias": [
+                        "[",
+                        "\"",
+                        "日",
+                        "期",
+                        "\"",
+                        ",",
+                        " ",
+                        "\"",
+                        "下",
+                        "单",
+                        "日",
+                        "期",
+                        "\"",
+                        "]"
+                    ]
+                },
+                {
+                    "name": "order_id",
+                    "type": "int",
+                    "role": "primary_key",
+                    "examples": [
+                        "[",
+                        "1",
+                        ",",
+                        " ",
+                        "2",
+                        ",",
+                        " ",
+                        "3",
+                        "]"
+                    ],
+                    "description": "订单唯一标识。",
+                    "alias": [
+                        "[",
+                        "\"",
+                        "订",
+                        "单",
+                        "I",
+                        "D",
+                        "\"",
+                        "]"
+                    ]
+                },
+                {
+                    "name": "product_id",
+                    "type": "int",
+                    "role": "foreign_key",
+                    "examples": [
+                        "[",
+                        "2",
+                        "0",
+                        "0",
+                        "1",
+                        ",",
+                        " ",
+                        "2",
+                        "0",
+                        "0",
+                        "2",
+                        ",",
+                        " ",
+                        "2",
+                        "0",
+                        "0",
+                        "3",
+                        "]"
+                    ],
+                    "description": "关联商品维度的外键。",
+                    "alias": [
+                        "[",
+                        "\"",
+                        "商",
+                        "品",
+                        "I",
+                        "D",
+                        "\"",
+                        ",",
+                        " ",
+                        "\"",
+                        "产",
+                        "品",
+                        "I",
+                        "D",
+                        "\"",
+                        "]"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dim_region",
+            "role": "dim",
+            "description": "地区维度表，用于描述订单发生的地理区域信息。",
+            "columns": [
+                {
+                    "name": "province",
+                    "type": "varchar",
+                    "role": "dimension",
+                    "examples": [
+                        "北京",
+                        "上海",
+                        "广东"
+                    ],
+                    "description": "订单所属的省份名称。",
+                    "alias": [
+                        "省份",
+                        "省",
+                        "所在省份"
+                    ]
+                },
+                {
+                    "name": "region_name",
+                    "type": "varchar",
+                    "role": "dimension",
+                    "examples": [
+                        "华北",
+                        "华东",
+                        "华南"
+                    ],
+                    "description": "订单所属的大区名称，如华东、华南等。",
+                    "alias": [
+                        "地区",
+                        "区域",
+                        "大区"
+                    ]
+                },
+                {
+                    "name": "region_id",
+                    "type": "int",
+                    "role": "primary_key",
+                    "examples": [
+                        1,
+                        2,
+                        3
+                    ],
+                    "description": "地区唯一标识。",
+                    "alias": [
+                        "地区ID",
+                        "区域ID"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "dim_product",
+            "role": "dim",
+            "description": "商品维度表，描述商品的基本属性信息。",
+            "columns": [
+                {
+                    "name": "category",
+                    "type": "varchar",
+                    "role": "dimension",
+                    "examples": [
+                        "笔记本",
+                        "手机",
+                        "电视"
+                    ],
+                    "description": "商品所属品类。",
+                    "alias": [
+                        "商品类别",
+                        "品类",
+                        "分类"
+                    ]
+                },
+                {
+                    "name": "brand",
+                    "type": "varchar",
+                    "role": "dimension",
+                    "examples": [
+                        "华为",
+                        "苹果",
+                        "小米"
+                    ],
+                    "description": "商品品牌名称。",
+                    "alias": [
+                        "品牌",
+                        "品牌名称"
+                    ]
+                },
+                {
+                    "name": "product_id",
+                    "type": "int",
+                    "role": "primary_key",
+                    "examples": [
+                        "[",
+                        "2",
+                        "0",
+                        "0",
+                        "1",
+                        ",",
+                        " ",
+                        "2",
+                        "0",
+                        "0",
+                        "2",
+                        ",",
+                        " ",
+                        "2",
+                        "0",
+                        "0",
+                        "3",
+                        "]"
+                    ],
+                    "description": "商品唯一标识。",
+                    "alias": [
+                        "[",
+                        "\"",
+                        "商",
+                        "品",
+                        "I",
+                        "D",
+                        "\"",
+                        ",",
+                        " ",
+                        "\"",
+                        "产",
+                        "品",
+                        "I",
+                        "D",
+                        "\"",
+                        "]"
+                    ]
+                }
+            ]
+        }
+    ],
+    "metric_infos": [
+        {
+            "name": "GMV",
+            "description": "全称Gross Merchandise Value，表示所有订单的成交金额总和。",
+            "relevant_columns": [
+                "fact_order.order_amount"
+            ],
+            "alias": [
+                "成交总额",
+                "订单总额"
+            ]
+        },
+        {
+            "name": "AOV",
+            "description": "全称Average Order Value，表示平均每笔订单的成交金额。",
+            "relevant_columns": [
+                "fact_order.order_amount",
+                "fact_order.order_quantity"
+            ],
+            "alias": [
+                "客单价",
+                "平均订单金额"
+            ]
+        }
+    ]
+}
+        """
         return {"table_infos": table_infos, "metric_infos": metric_infos}
     except Exception as exc:
         emit_progress(writer, "合并召回信息", "error", f"召回结果合并失败：{exc}")
